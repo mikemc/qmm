@@ -1,0 +1,115 @@
+# baseURL = "example.com"
+title = "Quantitative Microbiome Measurement"
+
+# Copyright notice. Note: You can use HTML tag here
+copyright = "&copy; 2021 The authors"
+pluralizeListTitles = false
+
+# Minimum number of posts before paginate navigation show up
+paginate = 10
+
+# Your disqus shortname
+disqusShortname = ""
+
+# Edit this if you want to translate your blog
+defaultContentLanguage = "en"
+
+# Code Highlighting (Chroma)
+pygmentsCodeFences = true
+pygmentsUseClasses = true
+
+# Ignore R-markdown files and intermediate files made by hugodown
+ignoreFiles = ['\.Rmd$', '_files$', '_cache$', '\.knit\.md$', '\.utf8\.md$']
+
+# Import and set theme using Hugo modules
+[module]
+  [[module.imports]]
+    path = "github.com/yursan9/manis-hugo-theme"
+    disable = false
+
+theme = "manis-hugo-theme"
+
+# Hugodown requires the goldmark renderer with `unsafe = true`
+[markup]
+  defaultMarkdownHandler = "goldmark"
+  [markup.goldmark.renderer]
+    unsafe = true
+
+[menu]
+  # It looks like these are ordered alphabetically in the menu
+  [[menu.main]]
+    name = "About"
+    url = "/about"
+  [[menu.main]]
+    name = "Wiki"
+    url = "/wiki/"
+  [[menu.main]]
+    name = "Blog"
+    url = "/blog/"
+
+[taxonomies]
+  tag = "tags"
+
+[params]
+  # If false, use minified CSS (ui.min.css)
+  debugCSS = false
+  # Custom CSS
+  customCSS = []
+  
+  # Site meta description
+  description = "A community-driven resource for microbiome researchers that aims to improve the accuracy and reproducibility of microbiome measurement."
+  # Site's Tagline (Subtitle or Keyword)
+  tagline = ""
+  # If true give attribution to this theme
+  themeAttrib = true
+  # URL to license file, can be outside of your domain
+  # licenseURL = "/about/license"
+	licenseURL = "https://creativecommons.org/licenses/by/4.0/"
+
+  # Configure which sections for Latest Posts
+  mainSections = ["wiki", "blog"]
+  # Configure which sections for Latest Works
+  workSections = ["works"]
+  
+  # List of sections that support disqus comments
+  disqusSections = [ ]
+  # List of sections that support utterances comments
+  utterancesSections = ["wiki", "blog"]
+  
+  # Utterances Configuration
+  utterancesRepo = ""
+  utterancesTheme = "github-light"
+  utterancesLabel = ""
+
+  # 404 Configuration
+  head404 = "Sorry, I can't find what you want."
+  sub404 = "Back to <a href='/'>Home</a>."
+
+  # Color of your website's accent
+  # colorTheme = "#ff6565"
+  # colorTheme = "#ff7f00"
+  colorTheme = "#6a3d9a"
+
+  # Maximum number of item in Latest Posts or Works
+  latestCount = 6
+  # Path to site's favicon image
+  faviconImg = ""
+  # Date format in item list
+  dateFmt = "2006-01-02"
+
+  # Code Highlighting (HighlightJS)
+  highlightJs = true
+  highlightJsLanguages = [ "r" ]
+  highlightJsStyle = "color-brewer"
+
+  # Social Links
+  email = ""
+  github = "https://github.com/mikemc/qmm"
+  twitter = ""
+
+
+# Language Configuration
+#[languages.in]
+# lang = "in"
+# languageName = "Bahasa Indonesia"
+# weight = 1
