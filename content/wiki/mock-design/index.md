@@ -1,0 +1,80 @@
+---
+title: "Considerations for designing calibration mocks"
+authors: ["Michael McLaren"]
+tags: [
+  "mocks",
+  "experimental design",
+]
+categories: []
+date: "2020-11-17"
+lastmod: "2021-01-23"
+draft: false
+---
+
+*Status: Partial draft.*
+
+This post summarizes various choices and important considerations when designing mock communities to serve as *calibration controls*—samples that are used to estimate the bias associated with the taxa they contain (the *control taxa*) so that that bias can be corrected in measurements of the focal experimental samples.
+
+# Constructing mocks that resemble the target samples
+
+A primary concern is that the bias in the mock controls could significantly differ from that in the target samples.
+To minimize this risk, one would like the controls to (biologically, physically, and chemically) resemble the primary samples as well as possible.
+Alternatively, having multiple mock controls in a variety of conditions can give a sense of the robustness of the estimated bias, and thus the reliability of calibration, under varying conditions.
+There are tradeoffs in representativeness versus experimental effort, and controls can still be useful without following all or even most of these suggestions, you'd just want to treat the calibrated microbiome measurements more skeptically.
+
+## Cell vs. DNA controls
+
+Cell or DNA mixtures can be used as controls.
+Cellular controls are ideal because they can go through the exact same measurement protocol as the real samples, allowing a measurement of the full protocol bias, whereas bias measured from DNA controls will not include bias due to DNA extraction.
+But DNA controls are (probably) better than nothing as they still allow estimating bias due to PCR bias and variation in 16S/ITS copy number.
+My understanding is that it is much easier to make well-quantified DNA mixtures than cell mixtures for at least some taxa, so I can imagine in some cases choosing to use DNA controls over cell controls.
+
+## Sample matrix
+
+Any chemicals of physical material that differs between controls and targets could influence bias, through interactions with extraction and/or PCR.
+For example, the fecal or plant matter in gut and plant microbiome experiments might affect bias, and so one might choose to mix the mocks with fecal or plant matter.
+
+## Storage and freeze/thaw cycles
+
+Preservative chemicals and temperature (and especially temperature changes) have the potential to effect bias (especially extraction bias).
+Ideally the mocks and target samples would be undergo the same treatment.
+
+## Composition and total concentration
+
+The core assumption of our model of bias is that it is independent of the underlying (relative or absolute) abundances of taxa in a sample.
+However, this assumption has not been extensively tested, and it is plausible that bias will be affected by large changes in total biomass/cell concentration or with the abundances of specific taxa.
+For this reason, I currently suggest aiming to construct cellular controls with concentrations spanning the range of expected concentrations in the target samples (or in the middle of this range, if that is not possible).
+This could be achieved by constructing a mock at a high concentration and then creating one or more dilutions.
+Similarly, it is useful to have each taxon appear in a range of relative abundances (say, spanning 0.01 to 0.3), to verify that bias is approximately independent of composition and gain confidence in calibration over the range of compositions seen in real data.
+
+When determining which mock compositions to construct, it may be important to consider tradeoffs between construction accuracy and variation in abundances (see Quantification section below).
+It may be more difficult to accurately construct a mock with 1% of a taxon than 10% of that taxon.
+
+## Experimental batches
+
+Subtle variation in experimental conditions can in principle affect bias.
+Thus, if the sequencing experiment is done in multiple batches of extraction and/or sequencing, then it would be best to have mock controls in each batch, to maintain the ability to capture any batch effects.
+
+# Quantification
+
+Here the key concerns are quantifying the mocks in useful biological units, and avoiding large (unquantified) error in the true mock compositions.
+Ideal: Controls have accurately quantified relative abundances, with estimated precision or uncertainty in the true relative abundances, in the desired units (e.g., cell concentration).
+
+* Units: Whatever units the stocks are measured in, are the units the compositions will be calibrated to. For example, if you measure abundance of stocks in terms of OD, and there is a systematic difference in how OD translates to cell concentration for different taxa, the calibrated relative abundances will be in terms of relative OD and not relative cell concentrations. 
+  * Another example, for DNA mocks: The relative DNA abundance could be quantified in terms of DNA concentration, the concentration of a single-copy marker gene, or the concentration of the 16S gene, each giving different units. However, this is not a huge concern if we know the genome sizes and 16S copy numbers, as we can easily convert between units of [DNA], [16S copies], and [genome copies].
+* Error in the abundance measurements or construction of the controls will affect bias that we estimate from them. So the more accurately you can construct the controls, the better. Correlated errors are particularly problematic. For example, Taxon 1 is more abundant than nominal in all controls because Taxon 1 happened to be quantified as having a lower than actual concentration in the stock that was used to mix the mocks. Such errors are less problematic if we can quantify their risk: For example, if we have standard errors in the quantifications of the stocks, we can use them to account for uncertainty in the true mock compositions during bias estimation and calibration.
+
+## Possible quantification methods
+
+Cells:
+
+* Optical density (OD)
+* Flow cytometry
+* Microscopy
+* Plating + CFU counting
+* ddPCR
+
+DNA:
+
+* qPCR
+* DNA concentration
