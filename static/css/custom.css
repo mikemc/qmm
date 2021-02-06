@@ -1,6 +1,0 @@
-/* Reduce code-block font size from theme default so that 80-char lines of code
- * can fit */
-/* Overrides font-size in #Code section in template.css */
-code {
-  font-size: 84%;
-}

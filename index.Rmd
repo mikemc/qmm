@@ -1,3 +1,5 @@
 ---
-site: hugodown:::hugodown_site
+title: "Quantitative Microbiome Measurement"
+site: distill::distill_website
+listing: posts
 ---
