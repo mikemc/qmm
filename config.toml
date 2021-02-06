@@ -54,7 +54,7 @@ theme = "manis-hugo-theme"
   # If false, use minified CSS (ui.min.css)
   debugCSS = false
   # Custom CSS
-  customCSS = []
+  customCSS = ["/css/custom.css"]
   
   # Site meta description
   description = "A community-driven resource for microbiome researchers that aims to improve the accuracy and reproducibility of microbiome measurement."
