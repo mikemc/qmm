@@ -1,0 +1,400 @@
+---
+title: "Estimating bias from mock communities using the fido R package"
+description: |
+  A basic demonstration of how to use the fido R package for estimating bias
+  from mock communities.
+author:
+  - name: Michael R. McLaren
+    affiliation: North Carolina State University
+    affiliation_url: https://callahanlab.cvm.ncsu.edu/
+categories:
+  - mock communities
+  - bias estimation
+  - R
+  - computational workflow
+date: 2021-02-06
+lastmod: 2021-02-25
+draft: false
+output:
+  distill::distill_article:
+    self_contained: false
+    toc: true
+    toc_float: true
+    dev: svg
+---
+
+```{r, include = FALSE}
+# knitr chunk options
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  cache = TRUE,
+  autodep = TRUE,
+  cache.comments = FALSE
+)
+```
+
+*Status: Draft.*
+
+This post aims to give a minimum working example of how to use the [fido R package](https://jsilve24.github.io/fido/), created by Justin Silverman, to estimate bias from mock communities using the framework of @McLaren2019.
+It is meant to supplement the vignettes included in fido package, particularly the [introduction to pibble models](https://jsilve24.github.io/fido/articles/introduction-to-fido.html) and the [vignette on setting priors in pibble models](https://jsilve24.github.io/fido/articles/picking_priors.html).
+I therefore gloss over many important details about using fido and pibble models in general.
+
+Bias estimation using fido's pibble models has several advantages over the method used in @McLaren2019 (as implemented in the [metacal package](https://mikemc.github.io/metacal)), including
+
+* Pibble models can be used to model the log relative efficiencies as linear functions of sample predictor variables, something not yet supported by metacal.
+* Pibble models model the random counting error inherent in the sequencing process, which removes the need for pseudocounts and should improve accuracy in cases where taxa have small read counts (say, $\lesssim 10$).
+* The multivariate Normal prior on the coefficients provides a natural way to regularize efficiency estimates and (perhaps) account for phylogenetic relatedness among taxa
+
+Pibble models do require careful selection of complex, multivariate priors, making their use more difficult at first.
+The scale of variation in efficiencies and in phylogenetic conservation for a given protocol and set of taxa are not typically known ahead of time, so it may often be warranted to experiment with different priors or use rather weakly informative ones.
+Hierarchical modeling of the efficiency parameters would be useful to overcome this limitation, but is not supported by Fido; an "Empirical Bayes" approach may be useful to achieve a similar effect.
+
+## R setup
+
+```{r packages}
+library(tidyverse)
+
+library(metacal)
+library(fido)
+
+library(ggdist)
+library(cowplot)
+library(patchwork)
+
+# Other packages used: driver, data.table
+```
+
+I will use the data from the cell-mixtures experiment of Brooks et al. (2015), which is included in the metacal package. 
+Each sample is a cellular mock community consisting of an even mixture of one to seven of a set of seven bacterial species.
+The following code chunk imports and lightly cleans the data.
+
+```{r data, code_folding = TRUE, message = FALSE}
+# The sample data and the observed and actual species abundances are stored as
+# `.csv` files. The abundances are stored in standard OTU-table format with
+# samples as rows and taxa as columns.
+sam <- system.file(
+  "extdata", "brooks2015-sample-data.csv", package = "metacal"
+) %>%
+  read_csv(col_types = "cffcic") %>%
+  dplyr::rename_with(str_to_lower)
+observed <- system.file(
+  "extdata", "brooks2015-observed.csv", package = "metacal"
+) %>%
+  read_csv %>%
+  select(-Other) %>%
+  column_to_rownames("Sample") %>%
+  as("matrix")
+actual <- system.file(
+  "extdata", "brooks2015-actual.csv", package = "metacal"
+) %>%
+  read_csv %>%
+  column_to_rownames("Sample") %>%
+  as("matrix")
+stopifnot(setequal(colnames(actual), colnames(observed)))
+stopifnot(setequal(rownames(actual), rownames(observed)))
+stopifnot(setequal(rownames(actual), sam$sample))
+# For working with fido, we want to make sure that the corresponding entries of
+# `actual` and `observed` exactly match up, both are oriented with taxa as
+# rows, and the order of samples also matches those in the sample data.
+# (Currently, the abundance matrices are oriented with taxa as columns.)
+observed <- observed %>% t
+observed <- observed[, sam$sample]
+actual <- actual %>% t
+actual <- actual[rownames(observed), colnames(observed)]
+stopifnot(identical(dimnames(observed), dimnames(actual)))
+stopifnot(identical(colnames(observed), sam$sample))
+```
+
+Our starting point is a (tibble) data frame `sam` with the sample metadata
+
+```{r}
+sam %>% glimpse
+```
+
+a matrix `observed` with the observed counts
+
+```{r}
+observed %>% corner
+```
+
+and a matrix `actual` with the nominal actual proportions of each species in each mock sample,
+
+```{r}
+actual %>% corner %>% round(2)
+```
+
+I have ensured that the corresponding entries of `actual` and `observed`
+exactly match up—that is, the rows and columns represent the taxa and samples in exactly the same order—and oriented both with taxa as rows.
+I have also ensured that the set and order of samples in `sam` exactly matches those in these abundance matrices.
+
+```{r}
+n_samples <- ncol(observed)
+n_taxa <- nrow(observed)
+```
+
+Samples differ in the number and identify of taxa they contain, with most samples containing just a subset of the 7 taxa,
+
+```{r}
+sam %>% count(num_species)
+```
+
+These samples have all been measured by the same protocol, but are split across two sequencing plates,
+
+```{r}
+sam %>% count(plate)
+```
+
+Some entries in the count matrix have small positive values despite the corresponding entry being 0 in the matrix of actual proportions,
+
+```{r}
+actual %>% corner %>% round(2)
+observed %>% corner
+```
+
+Such behavior is expected due to index hopping and other types of cross-sample contamination, but is not accounted for by the framework of McLaren2019 and we must set these counts to zero before proceeding.
+(Note: The metacal `estimate_bias()` function will do this automatically).
+
+```{r}
+observed[actual == 0] <- 0
+```
+
+## Estimation using `metacal::estimate_bias()`
+
+We estimate bias using metacal as a point of comparison.
+Use of `metacal::estimate_bias()` is explained in the [metacal tutorial](https://mikemc.github.io/metacal/articles/tutorial.html).
+Entries that are non-zero in the observed matrix but zero in the actual matrix will be automatically zero'd by the function (see above).
+Metacal also requires that all entries in observed corresponding to positive entries in actual are positive, and so I add a pseudocount prior; fido will not require this step.
+
+```{r}
+mc_fit <- estimate_bias(
+  observed,
+  actual, 
+  margin = 2, # samples as columns
+  boot = TRUE
+)
+summary(mc_fit)
+```
+
+The estimated efficiencies are geometrically centered, so that the estimates of individual taxa should be interpreted as being relative to all taxa.
+
+We can visualize the interval estimates from the bootstrap replicates by first creating a tidy data frame with the replicates
+
+```{r}
+# Convert stored bootstrap results into a tidy data frame
+mc_boot <- mc_fit$bootrep %>%
+  as_tibble %>%
+  mutate(.draw = row_number()) %>%
+  pivot_longer(cols = -.draw, names_to = "taxon", values_to = "estimate") %>%
+  mutate(
+    across(taxon, fct_reorder, estimate)
+  )
+```
+
+and plotting with geoms such as `stat_interval` from the ggdist package,
+
+```{r, fig.dim = c(7, 3.5)}
+mc_boot %>%
+  ggplot(aes(y = taxon, x = estimate)) +
+  stat_interval(.width = c(0.5, 0.9)) +
+  scale_color_brewer() +
+  theme_minimal_hgrid() +
+  scale_x_log10() +
+  plot_annotation(title = "Metacal bias estimate")
+```
+
+## Estimation using `fido::pibble()`
+
+The pibble model defines a matrix of parameters $\pi$, such that the observed counts for sample $j$ are multinomially distributed, $Y_j \sim \text{Multinomial}(\sum_j Y_j, \pi_j)$, and the expected ALR transform of $\pi_j$ is given by the linear model
+\begin{align}
+  E[\operatorname{alr} \pi_j] &= \Lambda X_j
+  = \sum_{k=1}^Q \Lambda_{k} X_{k,j}
+\end{align}
+where $\Lambda$ is a matrix of regression coefficients and $X_j$ is the vector of covariates for sample $j$.
+Compare this with the MWC model in the case where all taxa are assumed present, for which the expected ALR library composition is
+\begin{align}
+  E[\operatorname{alr} \pi_j] = \operatorname{alr} A_j + \operatorname{alr} B,
+\end{align}
+where $B$ is the vector of relative efficiencies that we wish to estimate.
+To fit the MWC model in a linear regression function that supports sample-specific offsets, (such as `base::lm()`), we can simply set the offsets equal the actual ALR abundances and use a constant (intercept) term for $\operatorname{alr} B$.
+Fido does not support offsets, so we instead take the approach [recommended by Justin Silverman](https://github.com/jsilve24/stray/issues/37#issuecomment-536586805) of adding indicator (dummy) variables to our model, one for each mock sample, and setting the priors on the corresponding coefficients to reflect our knowledge of the true sample compositions.
+
+A further wrinkle is that pibble models assume that all taxa are in all samples (though potentially at very low frequencies). 
+Therefore, to use the above approach we must treat samples for which a taxon was not added as having a very small amount of that taxon. 
+By setting the frequency low enough such that it would have been very unlikely to yield any sequencing reads anyways, the estimates we obtain should be approximately equivalent to what we'd get using `metacal::estimate_bias()` and treating these entries as true biological zeros.
+This is a valid approach to dealing with biological zeros in pibble models (but not with the metacal estimator) thanks to the multinomial layer in the probability model.
+
+In practice, we set our design matrix to have $N+1$ columns: one for each sample, and a final column for the protocol effect.
+The first $N$ columns correspond to indicator variables $I^{(j)}$ that are 0 except for sample $j$.
+The $N+1$-th column is 1 everywhere, like a standard intercept term, that will capture the bias.
+
+```{r}
+# Design matrix
+X <- model.matrix(~ 0 + sample,
+  data = sam
+) %>% 
+  cbind(bias = 1) %>%
+  t
+dim(X)
+X[c(1:3, nrow(X)), 1:3]
+```
+
+Next, we set our prior on the coefficients to reflect the actual ALR abundances in the samples.
+To avoid zeros in the actual abundances prior to ALR transformation, we will add a small value chosen to give a proportion that is less than 1 divided by the maximum sample read depth and so is expected to have negligible effect on the resulting estimates.
+(Note, setting the zero values to smaller numbers may create numerical issues that result in warnings and require experimentation to achieve reliable fits.)
+The mean for the bias term is set to 0 (corresponding to all taxa having equal efficiency).
+The matrix Theta denotes the prior mean of the coefficient matrix,
+
+```{r}
+colSums(observed) %>% max %>% {1 / .}
+actual.alr <- (actual + 1e-7) %>% 
+  # driver::alr assumes taxa are columns
+  t %>%
+  driver::alr() %>%
+  t
+nms <- rownames(X) %>% 
+  str_subset("^sample") %>% 
+  str_replace("^sample", "")
+Theta <- cbind(actual.alr[, nms], bias = 0)
+```
+
+Gamma is the prior covariance between the coefficients of different covariates.
+In this illustration, I will set Gamma to be diagonal, to reflect the assumption that the samples were constructed independently and thus are subject to independent construction error.
+The first $N$ diagonal elements for the mock covariates reflect our uncertainty in the true abundances and can be adjusted to reflect the tolerance in constructing and quantifying the mocks.
+The final element corresponds to our uncertainty in the ALR efficiencies and should typically be much larger.
+
+```{r}
+v <- c(rep(0.02, n_samples), 1)
+Gamma <- diag(v)
+```
+
+To proceed with model fitting, it remains to set a prior on the covariance between taxa ALR values.
+For now I simply follow the pibble introductory vignette and suggest more consideration of this step, as well as the choice Gamma, in real applications.
+
+```{r}
+upsilon <- n_taxa + 3
+Omega <- diag(n_taxa)
+G <- cbind(diag(n_taxa - 1), -1)
+Xi <- (upsilon - n_taxa) * G %*% Omega %*% t(G)
+```
+
+*In this dataset, each sample is an independently constructed mock; however, in general one might have technical replicates of some mocks.
+In that case, it would be appropriate to instead have one indicator variable for each independently constructed mock rather than each sample, each corresponding to a row in `actual` and with appropriate adjustments to the design matrix and priors.*
+
+Next, I construct the pibble model object for the prior and fit to the observed
+counts following the pibble vignette.
+Note the conversion to CLR coordinates.
+
+```{r}
+priors <- pibble(NULL, X, upsilon, Theta, Gamma, Xi)
+print(priors)
+priors <- to_clr(priors)
+names_covariates(priors) <- rownames(X)
+priors$Y <- observed
+posterior <- refit(priors, optim_method="adam")
+names_categories(posterior) <- rownames(observed)
+```
+
+We can see a summary of the (CLR) efficiency estimates as follows,
+
+```{r}
+s <- summary(posterior)
+s$Lambda %>%
+  filter(str_detect(covariate, "bias")) %>%
+  select(-Parameter) %>%
+  arrange(-mean)
+```
+
+I will compare the fido and metacal estimates by using the posterior samples (fido) and bootstrap replicates (metacal) to generate interval estimates.
+First, I put the fido posterior samples in a data frame in long (tidy) format,
+
+```{r}
+fido_post <- posterior$Lambda %>%
+  data.table::as.data.table() %>%
+  rlang::set_names("coord", "term", ".draw", "value") %>%
+  print
+```
+
+(Alternately, you can use `fido::pibble_tidy_samples(posterior)`.)
+To make this data frame compatible with the `mc_boot` data frame, we must exponentiate the CLR values and adjust the taxa and column names, This data frame has the actual abundances as well, so I first filter to just the bias coefficients.
+
+```{r}
+fido_post0 <- fido_post %>%
+  filter(term == "bias") %>%
+  rename(taxon = coord, estimate = value) %>%
+  mutate(
+    across(estimate, exp),
+    across(taxon, str_sub, 5) # Remove the "clr_"
+  )
+```
+
+Now we can bind these estimates with the `mc_boot` estimate to view them side-by-side,
+
+```{r, fig.dim = c(7, 6)}
+bind_rows(metacal = mc_boot, fido = fido_post0, .id = "method") %>%
+  mutate(across(taxon, fct_reorder, estimate)) %>%
+  ggplot(aes(y = method, x = estimate)) +
+  stat_interval(.width = c(0.5, 0.9)) +
+  scale_color_brewer() +
+  theme_minimal_hgrid() +
+  scale_x_log10() +
+  facet_wrap(~taxon, ncol = 1) +
+  plot_annotation("Geometrically-centered efficiency estimates")
+```
+
+Comparing the fido interval estimates side-by-side with the metacal estimates
+shows close agreement, with the fido intervals being larger and mostly
+containing the metacal intervals.
+The size of the fido intervals is likely sensitive to our choice of
+priors, which determine the assumed precision of the known mock abundances as
+well as an [implicit signal-to-noise
+ratio](https://jsilve24.github.io/fido/articles/picking_priors.html#how-the-choice-of-upsilon-and-xi-interacts-with-the-choice-of-gamma-)
+in the sequencing measurements.
+
+## Multiple protocols or protocol covariates
+
+In progress; for now just some hints as to how to include covariates in a pibble bias model.
+The basic idea is to replace the constant "bias" column in the design matrix while leaving the sample indicators unchanged.
+For example, suppose we wanted to estimate separate efficiencies for each of the two sequencing plates in the Brooks data,
+
+```{r}
+sam %>% count(plate)
+```
+
+We could use the following design matrix,
+
+```{r}
+X <- model.matrix(~ 0 + sample + I(plate == "1") + I(plate == "2"),
+  data = sam
+) %>% 
+  t
+# simplify names for the two plate indicators
+rownames(X)[c(nrow(X) - 1, nrow(X))] <- str_c("plate", 1:2)
+# partial view:
+X[c(1:3, nrow(X) - 1, nrow(X)), c(1:2, 40:41)]
+```
+
+The coefficients of the two plate terms will give the bias associated with each plate; differences indicate the presence of a batch effect.
+Alternatively, we could use a design such as 
+
+```{r}
+X <- model.matrix(~ 0 + sample + plate,
+  data = sam
+) %>% 
+  cbind(bias = 1) %>%
+  t
+X[c(1:3, nrow(X) - 1, nrow(X)), c(1:2, 40:41)]
+```
+
+In this case, the `bias` coefficients give the bias in plate 1, and the `plate2` coefficients gives the difference in bias of plate 2 vs. plate 1. 
+Now, values in the `plate2` coefficients that deviate from 0 indicate a batch effect.
+The same inferences can be draw from fitted models using either approach; however, the priors will have different interpretations and may lead one to prefer one approach versus another.
+
+## Session info {.appendix}
+
+<details><summary>Click for session info</summary>
+```{r, R.options = list(width = 83)}
+sessioninfo::session_info()
+```
+</details>
+
