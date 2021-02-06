@@ -1,17 +1,26 @@
 ---
-title: "Considerations for designing calibration spike-ins"
-authors: ["Michael McLaren"]
-tags: [
-  "spike-ins",
-  "experimental design",
-]
-categories: []
-date: 2020-12-03
-lastmod: 2021-01-23
+title: "Considerations for designing spike-in experiments"
+description: |
+  Some considerations for designing spike-ins for absolute-abundance
+  calibration in community sequencing experiments.
+author:
+  - name: Michael R. McLaren
+    affiliation: North Carolina State University
+    affiliation_url: https://callahanlab.cvm.ncsu.edu/
+categories:
+  - spike-ins
+  - experimental design
+  - calibration
+  - absolute abundance
+date: 2021-02-06
+lastmod: 2021-02-06
 draft: true
+output:
+  distill::distill_article:
+    self_contained: false
 ---
 
-*Status: Partial draft.*
+*Status: Preliminary speculations.*
 
 Adding a cellular or DNA spike-in at a fixed or known concentration to each sample prior to community sequencing can be used to obtain calibrated estimates of the fold changes in absolute abundance across samples of all sequenced taxa.
 This post lists some relevant considerations for designing spike-ins for this purpose.
