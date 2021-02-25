@@ -1,5 +1,6 @@
 name: "qmm"
 title: "Quantitative Microbiome Measurement"
+base_url: https://microbiomemeasurement.org
 description: |
   Quantitative Microbiome Measurement
 output_dir: "_site"
