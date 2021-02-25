@@ -1,9 +1,11 @@
 ---
-title: "About this blog"
-description: |
-  Some additional details about the blog
+title: "About this site"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 ```
+
+Marker-gene and shotgun metagenomic sequencing have become the tools of choice for measuring microbiomes.
+But these tools have a variety of technical limitations, which leave the accuracy and biological meaningfulness of their measurements unclear.
+This site aims to serve as a crowd-sourced repository of knowledge of these limitations and the latest in experimental and data-analysis techniques designed to overcome them.
