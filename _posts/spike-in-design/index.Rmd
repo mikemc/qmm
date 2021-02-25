@@ -18,6 +18,7 @@ draft: true
 output:
   distill::distill_article:
     self_contained: false
+creative_commons: CC BY
 ---
 
 *Status: Preliminary speculations.*

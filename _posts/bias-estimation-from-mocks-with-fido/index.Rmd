@@ -21,6 +21,7 @@ output:
     toc: true
     toc_float: true
     dev: svg
+creative_commons: CC BY
 ---
 
 ```{r, include = FALSE}
