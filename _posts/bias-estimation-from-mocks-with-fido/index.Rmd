@@ -22,6 +22,7 @@ output:
     toc_float: true
     dev: svg
 creative_commons: CC BY
+bibliography: ../../_references.bib
 ---
 
 ```{r, include = FALSE}
@@ -37,11 +38,11 @@ knitr::opts_chunk$set(
 
 *Status: Draft.*
 
-This post aims to give a minimum working example of how to use the [fido R package](https://jsilve24.github.io/fido/), created by Justin Silverman, to estimate bias from mock communities using the framework of @McLaren2019.
+This post aims to give a minimum working example of how to use the [fido R package](https://jsilve24.github.io/fido/) [@silverman2019baye] to estimate bias from mock communities using the bias modeling framework of @mclaren2019cons.
 It is meant to supplement the vignettes included in fido package, particularly the [introduction to pibble models](https://jsilve24.github.io/fido/articles/introduction-to-fido.html) and the [vignette on setting priors in pibble models](https://jsilve24.github.io/fido/articles/picking_priors.html).
 I therefore gloss over many important details about using fido and pibble models in general.
 
-Bias estimation using fido's pibble models has several advantages over the method used in @McLaren2019 (as implemented in the [metacal package](https://mikemc.github.io/metacal)), including
+Bias estimation using fido's pibble models has several advantages over the method used in @mclaren2019cons (as implemented in the [metacal package](https://mikemc.github.io/metacal)), including
 
 * Pibble models can be used to model the log relative efficiencies as linear functions of sample predictor variables, something not yet supported by metacal.
 * Pibble models model the random counting error inherent in the sequencing process, which removes the need for pseudocounts and should improve accuracy in cases where taxa have small read counts (say, $\lesssim 10$).
@@ -49,7 +50,7 @@ Bias estimation using fido's pibble models has several advantages over the metho
 
 Pibble models do require careful selection of complex, multivariate priors, making their use more difficult at first.
 The scale of variation in efficiencies and in phylogenetic conservation for a given protocol and set of taxa are not typically known ahead of time, so it may often be warranted to experiment with different priors or use rather weakly informative ones.
-Hierarchical modeling of the efficiency parameters would be useful to overcome this limitation, but is not supported by Fido; an "Empirical Bayes" approach may be useful to achieve a similar effect.
+Hierarchical modeling of the efficiency parameters would be useful to overcome this limitation, but is not supported by fido; an "Empirical Bayes" approach may be useful to achieve a similar effect.
 
 ## R setup
 
@@ -66,7 +67,7 @@ library(patchwork)
 # Other packages used: driver, data.table
 ```
 
-I will use the data from the cell-mixtures experiment of Brooks et al. (2015), which is included in the metacal package. 
+I will use the data from the cell-mixtures experiment of @brooks2015thet, which is included in the metacal package. 
 Each sample is a cellular mock community consisting of an even mixture of one to seven of a set of seven bacterial species.
 The following code chunk imports and lightly cleans the data.
 

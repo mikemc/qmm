@@ -12,17 +12,19 @@ categories:
   - experimental design
   - calibration
 date: 2021-02-06
-lastmod: 2021-02-06
+lastmod: 2021-02-25
 draft: false
 output:
   distill::distill_article:
     self_contained: false
 creative_commons: CC BY
+bibliography: ../../_references.bib
 ---
 
 *Status: Partial draft.*
 
 This post summarizes various choices and important considerations when designing mock communities to serve as *calibration controls*—samples that are used to estimate the bias associated with the taxa they contain (the *control taxa*) so that that bias can be corrected in measurements of the focal experimental samples.
+The recommendations that follow are based on observations in @mclaren2019cons, our experience in an unpublished experiment we conducted to compare bias between *in vitro* and *in vivo* communities, and personal communications I've had with experimental microbiologists.
 
 # Constructing mocks that resemble the target samples
 
