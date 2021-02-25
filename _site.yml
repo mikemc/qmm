@@ -1,6 +1,7 @@
 name: "qmm"
 title: "Quantitative Microbiome Measurement"
 base_url: https://microbiomemeasurement.org
+repository_url: https://github.com/mikemc/qmm
 description: |
   Quantitative Microbiome Measurement
 output_dir: "_site"
@@ -10,4 +11,8 @@ navbar:
       href: index.html
     - text: "About"
       href: about.html
-output: distill::distill_article
+output: 
+  distill::distill_article:
+    includes:
+      in_header: _utterances.html
+        
