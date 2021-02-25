@@ -1,3 +1,13 @@
 _data/
 _notes/
+
+# Rendered site
 _site/
+
+# Results from rendering posts
+*.html
+*_cache/
+*_files/
+
+# Local Netlify folder
+.netlify
